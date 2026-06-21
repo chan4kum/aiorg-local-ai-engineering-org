@@ -54,6 +54,13 @@ model_list:
       max_tokens: 8192
       temperature: 0.1
 
+  - model_name: "ultra-fast-model"
+    litellm_params:
+      model: "ollama/llama3.2:latest"
+      api_base: "http://ollama:11434"
+      max_tokens: 8192
+      temperature: 0.1
+
   - model_name: "nomic-embed"
     litellm_params:
       model: "ollama/nomic-embed-text"
@@ -77,9 +84,9 @@ router_settings:
     "gpt-4o":
       model: "general-model"
       
-    # Map fast/research/eval requests to Qwen3 8B
+    # Map ultra-fast/evaluation requests to Llama 3.2
     "gpt-4o-mini":
-      model: "fast-model"
+      model: "ultra-fast-model"
       
     # Map embeddings
     "text-embedding-3-large":

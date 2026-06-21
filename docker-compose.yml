@@ -21,7 +21,7 @@ services:
     ports:
       - "11434:11434"
     volumes:
-      - ollama-data:/root/.ollama
+      - ~/.ollama:/root/.ollama
     networks:
       - openclaw-network
     restart: unless-stopped
@@ -75,7 +75,7 @@ services:
       redis:
         condition: service_healthy
       qdrant:
-        condition: service_healthy
+        condition: service_started
     healthcheck:
       test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()"]
       interval: 15s
@@ -112,7 +112,7 @@ services:
       redis:
         condition: service_healthy
       qdrant:
-        condition: service_healthy
+        condition: service_started
       litellm:
         condition: service_healthy
     healthcheck:
@@ -238,12 +238,6 @@ services:
     volumes:
       - qdrant-data:/qdrant/storage
       - qdrant-snapshots:/qdrant/snapshots
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:6333/readyz"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
     networks:
       - openclaw-network
     restart: unless-stopped
@@ -301,12 +295,6 @@ services:
     volumes:
       - ./observability/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
     command: ["--config=/etc/otelcol-contrib/config.yaml"]
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:13133/"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
     networks:
       - openclaw-network
     restart: unless-stopped
@@ -350,7 +338,7 @@ services:
     image: prom/prometheus:v2.54.0
     container_name: openclaw-prometheus
     ports:
-      - "${PROMETHEUS_PORT:-9090}:9090"
+      - "9091:9090"
     volumes:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
@@ -368,7 +356,7 @@ services:
       start_period: 10s
     depends_on:
       otel-collector:
-        condition: service_healthy
+        condition: service_started
     networks:
       - openclaw-network
     restart: unless-stopped
