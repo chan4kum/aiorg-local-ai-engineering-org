@@ -1,0 +1,17 @@
+name: Web Application
+version: 1.0
+nodes:
+  - id: write_prd
+    agent: ProductManager
+  - id: design_db
+    agent: DataEngineer
+    depends_on: [write_prd]
+  - id: build_api
+    agent: BackendEngineer
+    depends_on: [design_db]
+  - id: build_ui
+    agent: FrontendEngineer
+    depends_on: [build_api]
+  - id: security_scan
+    agent: SecurityEngineer
+    depends_on: [build_ui]

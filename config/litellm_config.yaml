@@ -1,0 +1,77 @@
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║  OpenClaw — LiteLLM Proxy Configuration (100% Local Ollama)                ║
+# ║  Transparently maps Cloud model requests to Local models                    ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+
+general_settings:
+  master_key: "os.environ/LITELLM_MASTER_KEY"
+  database_url: "os.environ/DATABASE_URL"
+
+litellm_settings:
+  set_verbose: false
+  json_logs: true
+  request_timeout: 300
+  num_retries: 3
+  retry_after: 5
+  count_tokens: true
+  cache: true
+  cache_params:
+    type: redis
+    host: redis
+    port: 6379
+    password: "os.environ/REDIS_PASSWORD"
+    namespace: "litellm_cache"
+    ttl: 3600
+
+model_list:
+
+  # ── Local Models (Ollama) ──────────────────────────────────────────────────
+  - model_name: "qwen2.5-reasoning"
+    litellm_params:
+      model: "ollama/qwen2.5:32b"
+      api_base: "http://host.docker.internal:11434"
+      max_tokens: 8192
+      temperature: 0.1
+
+  - model_name: "qwen2.5-coder"
+    litellm_params:
+      model: "ollama/qwen2.5-coder:7b"
+      api_base: "http://host.docker.internal:11434"
+      max_tokens: 8192
+      temperature: 0.1
+
+  - model_name: "llama3.2-fast"
+    litellm_params:
+      model: "ollama/llama3.2"
+      api_base: "http://host.docker.internal:11434"
+      max_tokens: 8192
+      temperature: 0.1
+      
+  - model_name: "nomic-embed"
+    litellm_params:
+      model: "ollama/nomic-embed-text"
+      api_base: "http://host.docker.internal:11434"
+
+router_settings:
+  routing_strategy: "latency-based-routing"
+  
+  model_group_alias:
+    # Map high-tier reasoning requests to Qwen 2.5 32B
+    "claude-opus":
+      model: "qwen2.5-reasoning"
+    "gpt-4o":
+      model: "qwen2.5-reasoning"
+      
+    # Map coding/engineering requests to Qwen 2.5 Coder
+    "claude-sonnet":
+      model: "qwen2.5-coder"
+    "qwen2.5-coder:7b":
+      model: "qwen2.5-coder"
+      
+    # Map fast/research/eval requests to Llama 3.2 3B
+    "gpt-4o-mini":
+      model: "llama3.2-fast"
+      
+    # Map embeddings
+    "text-embedding-3-large":
+      model: "nomic-embed"

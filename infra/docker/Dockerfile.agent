@@ -1,0 +1,47 @@
+# Stage 1: Build
+FROM python:3.12-slim as builder
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir poetry
+
+COPY pyproject.toml poetry.lock ./
+RUN poetry config virtualenvs.in-project true \
+    && poetry install --only main --no-root
+
+# Stage 2: Runtime
+FROM python:3.12-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    git \
+    jq \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app/.venv /app/.venv
+ENV PATH="/app/.venv/bin:$PATH"
+
+COPY backend /app/backend
+COPY agents /app/agents
+COPY mcp /app/mcp
+COPY memory /app/memory
+COPY orchestrator /app/orchestrator
+COPY services /app/services
+COPY workflows /app/workflows
+COPY evaluation /app/evaluation
+COPY observability /app/observability
+COPY config /app/config
+
+# Create workspace directory for agent operations
+RUN mkdir -p /workspace && chown -R 1000:1000 /workspace /app
+
+USER 1000
+
+# The command starts the agent worker process
+CMD ["python", "-m", "agents.worker"]

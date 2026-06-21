@@ -1,0 +1,20 @@
+name: RAG Chatbot
+version: 1.0
+nodes:
+  - id: analyze_requirements
+    agent: ProductManager
+  - id: design_architecture
+    agent: SolutionArchitect
+    depends_on: [analyze_requirements]
+  - id: build_backend
+    agent: BackendEngineer
+    depends_on: [design_architecture]
+  - id: build_ai_pipeline
+    agent: AIEngineer
+    depends_on: [design_architecture]
+  - id: build_frontend
+    agent: FrontendEngineer
+    depends_on: [design_architecture]
+  - id: test_system
+    agent: QAEngineer
+    depends_on: [build_backend, build_ai_pipeline, build_frontend]

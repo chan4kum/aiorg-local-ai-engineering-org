@@ -1,0 +1,154 @@
+mcp_permissions:
+  ProductManager:
+    allowed_tools:
+      - mcp.jira.read_issue
+      - mcp.jira.create_issue
+      - mcp.confluence.read_page
+      - mcp.confluence.create_page
+      - mcp.github.read_repository
+    allowed_resources:
+      - "jira://*"
+      - "confluence://*"
+
+  ScrumMaster:
+    allowed_tools:
+      - mcp.jira.read_issue
+      - mcp.jira.update_issue
+      - mcp.confluence.read_page
+    allowed_resources:
+      - "jira://*"
+
+  TechLead:
+    allowed_tools:
+      - mcp.github.read_repository
+      - mcp.github.create_pull_request
+      - mcp.github.review_pull_request
+      - mcp.confluence.read_page
+      - mcp.confluence.create_page
+      - mcp.jira.read_issue
+    allowed_resources:
+      - "github://*"
+      - "confluence://*"
+
+  FrontendDeveloper:
+    allowed_tools:
+      - mcp.github.read_repository
+      - mcp.github.create_pull_request
+      - mcp.github.commit_code
+      - mcp.jira.read_issue
+      - mcp.jira.update_issue
+    allowed_resources:
+      - "github://repo/frontend/*"
+      - "jira://*"
+
+  BackendDeveloper:
+    allowed_tools:
+      - mcp.github.read_repository
+      - mcp.github.create_pull_request
+      - mcp.github.commit_code
+      - mcp.jira.read_issue
+      - mcp.jira.update_issue
+      - mcp.database.read_schema
+    allowed_resources:
+      - "github://repo/backend/*"
+      - "postgres://schema/*"
+
+  DevOpsEngineer:
+    allowed_tools:
+      - mcp.github.read_repository
+      - mcp.github.commit_code
+      - mcp.aws.read_resources
+      - mcp.kubernetes.read_cluster
+      - mcp.terraform.apply
+    allowed_resources:
+      - "github://repo/infra/*"
+      - "aws://*"
+      - "k8s://*"
+
+  QAEngineer:
+    allowed_tools:
+      - mcp.github.read_repository
+      - mcp.jira.read_issue
+      - mcp.jira.create_issue
+      - mcp.testing.run_suite
+    allowed_resources:
+      - "github://*"
+      - "jira://*"
+
+  SecuritySpecialist:
+    allowed_tools:
+      - mcp.github.read_repository
+      - mcp.security.run_sast
+      - mcp.security.run_dast
+      - mcp.aws.read_resources
+    allowed_resources:
+      - "github://*"
+      - "aws://*"
+
+  DataScientist:
+    allowed_tools:
+      - mcp.database.read_data
+      - mcp.jupyter.run_notebook
+      - mcp.github.read_repository
+    allowed_resources:
+      - "postgres://data/*"
+      - "s3://data-lake/*"
+
+  DataEngineer:
+    allowed_tools:
+      - mcp.database.read_schema
+      - mcp.database.execute_ddl
+      - mcp.airflow.trigger_dag
+      - mcp.github.commit_code
+    allowed_resources:
+      - "postgres://data/*"
+      - "airflow://*"
+
+  UXDesigner:
+    allowed_tools:
+      - mcp.figma.read_file
+      - mcp.figma.export_assets
+      - mcp.jira.read_issue
+    allowed_resources:
+      - "figma://*"
+
+  TechnicalWriter:
+    allowed_tools:
+      - mcp.github.read_repository
+      - mcp.github.commit_code
+      - mcp.confluence.read_page
+      - mcp.confluence.create_page
+    allowed_resources:
+      - "github://repo/docs/*"
+      - "confluence://*"
+
+  SRE:
+    allowed_tools:
+      - mcp.datadog.read_metrics
+      - mcp.pagerduty.manage_incident
+      - mcp.kubernetes.read_cluster
+      - mcp.kubernetes.execute_command
+    allowed_resources:
+      - "datadog://*"
+      - "pagerduty://*"
+      - "k8s://*"
+
+  DBA:
+    allowed_tools:
+      - mcp.database.read_schema
+      - mcp.database.execute_ddl
+      - mcp.database.monitor_performance
+      - mcp.database.manage_backups
+    allowed_resources:
+      - "postgres://*"
+
+  SolutionsArchitect:
+    allowed_tools:
+      - mcp.github.read_repository
+      - mcp.confluence.create_page
+      - mcp.aws.read_resources
+      - mcp.lucidchart.create_diagram
+    allowed_resources:
+      - "github://*"
+      - "aws://*"
+      - "confluence://*"

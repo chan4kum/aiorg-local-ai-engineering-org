@@ -1,0 +1,10 @@
+owasp_top_10:
+  - id: A01:2021
+    name: Broken Access Control
+    check_enabled: true
+  - id: A02:2021
+    name: Cryptographic Failures
+    check_enabled: true
+  - id: A03:2021
+    name: Injection
+    check_enabled: true

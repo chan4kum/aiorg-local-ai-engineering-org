@@ -1,0 +1,5 @@
+policy:
+  allow_unknown_licenses: false
+  block_on_critical_cve: true
+  block_on_high_cve: true
+  require_signed_commits: true

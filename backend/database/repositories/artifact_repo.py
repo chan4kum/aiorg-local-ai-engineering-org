@@ -1,0 +1,51 @@
+from typing import List, Optional
+from sqlalchemy import select, update, delete
+from sqlalchemy.ext.asyncio import AsyncSession
+from backend.database.models import ArtifactModel
+
+class ArtifactRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create(self, data: dict) -> ArtifactModel:
+        db_item = ArtifactModel(**data)
+        self.session.add(db_item)
+        await self.session.commit()
+        await self.session.refresh(db_item)
+        return db_item
+
+    async def get_by_id(self, item_id: str) -> Optional[ArtifactModel]:
+        result = await self.session.execute(
+            select(ArtifactModel).where(ArtifactModel.id == item_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_all(self) -> List[ArtifactModel]:
+        result = await self.session.execute(select(ArtifactModel))
+        return list(result.scalars().all())
+
+    async def get_versions(self, item_id: str) -> List[dict]:
+        # This assumes versions might be stored in a separate table or serialized
+        # Here we just return mock or base data for demonstration
+        item = await self.get_by_id(item_id)
+        if not item:
+            return []
+        # Return versions based on item data or related version model
+        return [{"version": 1, "created_at": item.created_at, "content": "base"}]
+
+    async def update(self, item_id: str, data: dict) -> Optional[ArtifactModel]:
+        result = await self.session.execute(
+            update(ArtifactModel)
+            .where(ArtifactModel.id == item_id)
+            .values(**data)
+            .returning(ArtifactModel)
+        )
+        await self.session.commit()
+        return result.scalar_one_or_none()
+
+    async def delete(self, item_id: str) -> bool:
+        result = await self.session.execute(
+            delete(ArtifactModel).where(ArtifactModel.id == item_id)
+        )
+        await self.session.commit()
+        return result.rowcount > 0

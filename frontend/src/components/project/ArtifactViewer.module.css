@@ -1,0 +1,83 @@
+.container {
+  display: flex;
+  gap: 1.5rem;
+  height: 600px;
+}
+
+.sidebar {
+  width: 250px;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.fileBtn {
+  background: transparent;
+  border: none;
+  text-align: left;
+  padding: 0.5rem;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.fileBtn:hover {
+  background-color: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+.activeFile {
+  background-color: rgba(99, 102, 241, 0.1);
+  color: var(--primary-color);
+}
+
+.editor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.editorHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  background-color: var(--bg-surface);
+  font-family: monospace;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.copyBtn {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.75rem;
+  transition: all var(--transition-fast);
+}
+
+.copyBtn:hover {
+  border-color: var(--text-primary);
+  color: var(--text-primary);
+}
+
+.codeArea {
+  flex: 1;
+  padding: 1.5rem;
+  background-color: #0d0d0d;
+  color: #e5e5e5;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.9rem;
+  overflow: auto;
+  margin: 0;
+}

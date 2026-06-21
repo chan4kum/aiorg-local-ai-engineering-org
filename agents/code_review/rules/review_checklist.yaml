@@ -1,0 +1,6 @@
+checklist:
+  - "Does the code solve the problem as defined in the PRD?"
+  - "Are there adequate unit tests?"
+  - "Is the code properly documented?"
+  - "Are there any obvious security flaws?"
+  - "Is error handling implemented?"

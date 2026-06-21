@@ -1,0 +1,6 @@
+style:
+  max_line_length: 100
+  indentation: 4
+  quotes: "double"
+  enforce_typing: true
+  docstring_format: "google"

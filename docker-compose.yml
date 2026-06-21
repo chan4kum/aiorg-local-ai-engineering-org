@@ -1,0 +1,411 @@
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║  OpenClaw AI Engineering Organization — Docker Compose                      ║
+# ║  Full development environment with all infrastructure services              ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+
+name: openclaw
+
+x-common-env: &common-env
+  APP_ENV: ${APP_ENV:-development}
+  APP_LOG_LEVEL: ${APP_LOG_LEVEL:-DEBUG}
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+  OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME:-openclaw}
+
+services:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # APPLICATION SERVICES
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.backend
+    container_name: openclaw-api
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    environment:
+      <<: *common-env
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-openclaw}:${POSTGRES_PASSWORD:-openclaw_dev}@postgres:5432/${POSTGRES_DB:-openclaw}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_dev}@redis:6379/0
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      LITELLM_BASE_URL: http://litellm:4000
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-litellm-dev-key}
+      LANGFUSE_HOST: http://langfuse:3000
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-pk-lf-dev}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-sk-lf-dev}
+      APP_SECRET_KEY: ${APP_SECRET_KEY:-dev-secret-key-change-in-production}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-jwt-secret-change-in-production}
+    volumes:
+      - ./src:/app/src:cached
+      - ./config:/app/config:ro
+      - ./migrations:/app/migrations
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - openclaw-network
+    restart: unless-stopped
+
+  agent-runner:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.agent
+    container_name: openclaw-agent-runner
+    environment:
+      <<: *common-env
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-openclaw}:${POSTGRES_PASSWORD:-openclaw_dev}@postgres:5432/${POSTGRES_DB:-openclaw}
+      REDIS_URL: redis://:${REDIS_PASSWORD:-redis_dev}@redis:6379/0
+      QDRANT_HOST: qdrant
+      QDRANT_PORT: 6333
+      LITELLM_BASE_URL: http://litellm:4000
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-litellm-dev-key}
+      LANGFUSE_HOST: http://langfuse:3000
+      CELERY_BROKER_URL: redis://:${REDIS_PASSWORD:-redis_dev}@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis_dev}@redis:6379/2
+    volumes:
+      - ./src:/app/src:cached
+      - ./config:/app/config:ro
+      - agent-workspaces:/tmp/openclaw/workspaces
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      litellm:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "celery", "-A", "openclaw.worker", "inspect", "ping", "--timeout", "5"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    networks:
+      - openclaw-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.frontend
+    container_name: openclaw-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:${APP_PORT:-8000}
+      NEXT_PUBLIC_WS_URL: ws://localhost:${APP_PORT:-8000}/ws
+      NEXT_PUBLIC_APP_NAME: OpenClaw
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-dev-nextauth-secret}
+      NEXTAUTH_URL: http://localhost:3000
+    volumes:
+      - ./frontend/src:/app/src:cached
+      - ./frontend/public:/app/public:cached
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - openclaw-network
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # DATA STORES
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: openclaw-postgres
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-openclaw}
+      POSTGRES_USER: ${POSTGRES_USER:-openclaw}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-openclaw_dev}
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infra/scripts/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-openclaw} -d ${POSTGRES_DB:-openclaw}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - openclaw-network
+    restart: unless-stopped
+    shm_size: 256mb
+    command:
+      - "postgres"
+      - "-c" 
+      - "shared_preload_libraries=vector"
+      - "-c"
+      - "max_connections=200"
+      - "-c"
+      - "shared_buffers=256MB"
+      - "-c"
+      - "effective_cache_size=768MB"
+      - "-c"
+      - "work_mem=4MB"
+      - "-c"
+      - "log_statement=mod"
+
+  redis:
+    image: redis:7-alpine
+    container_name: openclaw-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:-redis_dev}
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --appendfsync everysec
+      --save 60 1000
+      --save 300 100
+      --tcp-keepalive 60
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_dev}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    networks:
+      - openclaw-network
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    container_name: openclaw-qdrant
+    ports:
+      - "${QDRANT_PORT:-6333}:6333"
+      - "${QDRANT_GRPC_PORT:-6334}:6334"
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:-qdrant_dev_key}
+      QDRANT__SERVICE__ENABLE_TLS: "false"
+      QDRANT__STORAGE__STORAGE_PATH: /qdrant/storage
+      QDRANT__STORAGE__SNAPSHOTS_PATH: /qdrant/snapshots
+      QDRANT__LOG_LEVEL: INFO
+    volumes:
+      - qdrant-data:/qdrant/storage
+      - qdrant-snapshots:/qdrant/snapshots
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:6333/readyz"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - openclaw-network
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # AI / LLM SERVICES
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    container_name: openclaw-litellm
+    ports:
+      - "${LITELLM_PORT:-4000}:4000"
+    environment:
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-litellm-dev-key}
+      LITELLM_LOG_LEVEL: ${LITELLM_LOG_LEVEL:-INFO}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-openclaw}:${POSTGRES_PASSWORD:-openclaw_dev}@postgres:5432/${POSTGRES_DB:-openclaw}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-}
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-us-east-1}
+    volumes:
+      - ./config/litellm_config.yaml:/app/config.yaml:ro
+    command: ["--config", "/app/config.yaml", "--port", "4000", "--detailed_debug"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:4000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - openclaw-network
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # OBSERVABILITY STACK
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.112.0
+    container_name: openclaw-otel-collector
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "8888:8888"   # Prometheus metrics (collector)
+      - "8889:8889"   # Prometheus exporter
+      - "13133:13133" # Health check
+    volumes:
+      - ./observability/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:13133/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - openclaw-network
+    restart: unless-stopped
+
+  langfuse:
+    image: langfuse/langfuse:2
+    container_name: openclaw-langfuse
+    ports:
+      - "3001:3000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-openclaw}:${POSTGRES_PASSWORD:-openclaw_dev}@postgres:5432/langfuse
+      NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:-langfuse-dev-secret}
+      NEXTAUTH_URL: http://localhost:3001
+      SALT: ${LANGFUSE_SALT:-langfuse-dev-salt-value}
+      TELEMETRY_ENABLED: "true"
+      LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: "true"
+      # Default project keys created on init
+      LANGFUSE_INIT_ORG_ID: "openclaw-org"
+      LANGFUSE_INIT_ORG_NAME: "OpenClaw"
+      LANGFUSE_INIT_PROJECT_ID: "openclaw-project"
+      LANGFUSE_INIT_PROJECT_NAME: "OpenClaw Agents"
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-pk-lf-dev}
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-sk-lf-dev}
+      LANGFUSE_INIT_USER_EMAIL: ${LANGFUSE_INIT_EMAIL:-admin@openclaw.dev}
+      LANGFUSE_INIT_USER_PASSWORD: ${LANGFUSE_INIT_PASSWORD:-changeme}
+      LANGFUSE_INIT_USER_NAME: "Admin"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/public/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - openclaw-network
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.54.0
+    container_name: openclaw-prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+      - "--web.enable-remote-write-receiver"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    depends_on:
+      otel-collector:
+        condition: service_healthy
+    networks:
+      - openclaw-network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.3.0
+    container_name: openclaw-grafana
+    ports:
+      - "${GRAFANA_PORT:-3002}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_SERVER_ROOT_URL: http://localhost:${GRAFANA_PORT:-3002}
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
+      GF_LOG_LEVEL: warn
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    networks:
+      - openclaw-network
+    restart: unless-stopped
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# NETWORKS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+networks:
+  openclaw-network:
+    driver: bridge
+    name: openclaw-network
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# VOLUMES
+# ═══════════════════════════════════════════════════════════════════════════════
+
+volumes:
+  postgres-data:
+    driver: local
+    name: openclaw-postgres-data
+  redis-data:
+    driver: local
+    name: openclaw-redis-data
+  qdrant-data:
+    driver: local
+    name: openclaw-qdrant-data
+  qdrant-snapshots:
+    driver: local
+    name: openclaw-qdrant-snapshots
+  prometheus-data:
+    driver: local
+    name: openclaw-prometheus-data
+  grafana-data:
+    driver: local
+    name: openclaw-grafana-data
+  agent-workspaces:
+    driver: local
+    name: openclaw-agent-workspaces

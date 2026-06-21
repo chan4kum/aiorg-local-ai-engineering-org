@@ -1,0 +1,61 @@
+# Stage 1: Build
+FROM python:3.12-slim as builder
+
+WORKDIR /app
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install poetry
+RUN pip install --no-cache-dir poetry
+
+# Copy dependency files
+COPY pyproject.toml poetry.lock ./
+
+# Install dependencies into a virtualenv
+RUN poetry config virtualenvs.in-project true \
+    && poetry install --only main --no-root
+
+# Stage 2: Runtime
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the virtualenv from builder
+COPY --from=builder /app/.venv /app/.venv
+
+# Update PATH to use the virtualenv
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Copy application code
+COPY backend /app/backend
+COPY agents /app/agents
+COPY mcp /app/mcp
+COPY memory /app/memory
+COPY orchestrator /app/orchestrator
+COPY services /app/services
+COPY workflows /app/workflows
+COPY evaluation /app/evaluation
+COPY observability /app/observability
+COPY migrations /app/migrations
+COPY config /app/config
+COPY migrations/alembic.ini /app/alembic.ini
+
+# Create non-root user
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
+USER appuser
+
+EXPOSE 8000
+
+# Run Uvicorn server
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
