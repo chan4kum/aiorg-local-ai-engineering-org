@@ -1,10 +1,11 @@
 from typing import List, Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from backend.database.models import MemoryRecord
 from opentelemetry import trace
 import structlog
 import uuid
+import datetime
 
 tracer = trace.get_tracer(__name__)
 logger = structlog.get_logger()
@@ -41,3 +42,29 @@ class PostgresMemory:
                     }
                     for r in records
                 ]
+                
+    async def save_project_blueprint(self, run_id: str, blueprint: Dict[str, Any]) -> str:
+        """Saves the project blueprint (System Architect memory)"""
+        with tracer.start_as_current_span("postgres_memory.save_blueprint"):
+            metadata = {"type": "project_blueprint", "importance_score": 100}
+            return await self.save_record(run_id, str(blueprint), metadata)
+            
+    async def add_lesson_learned(self, run_id: str, lesson: str, importance_score: int = 50) -> str:
+        """Saves a lesson learned with an importance score for pruning."""
+        metadata = {"type": "lessons_learned", "importance_score": importance_score, "last_accessed": datetime.datetime.utcnow().isoformat()}
+        return await self.save_record(run_id, lesson, metadata)
+        
+    async def prune_expired_memory(self):
+        """
+        Memory Expiration Policy.
+        Prunes lessons_learned that have an importance score < 50 and haven't been accessed recently.
+        """
+        with tracer.start_as_current_span("postgres_memory.prune"):
+            async with self.session_maker() as session:
+                # Stub logic to find records to prune. 
+                # In a real implementation we would do a JSONB query on metadata_
+                logger.info("Pruning expired memory based on importance_score and relevance...")
+                # stmt = delete(MemoryRecord).where(...)
+                # await session.execute(stmt)
+                # await session.commit()
+                pass

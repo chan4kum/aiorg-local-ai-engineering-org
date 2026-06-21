@@ -6,7 +6,7 @@ import structlog
 from opentelemetry import trace
 
 from backend.services.llm_service import LLMService
-from backend.services.event_bus import EventBus
+from services.event_bus import EventBus
 from backend.memory.memory_manager import MemoryManager
 from .memory import AgentMemoryMixin
 from .observability import AgentObservabilityMixin

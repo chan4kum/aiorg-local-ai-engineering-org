@@ -12,6 +12,12 @@ class TaskQueue:
         self.redis = redis.from_url(redis_url, decode_responses=True)
         self.queue_name = "task_queue"
 
+    async def start(self):
+        pass
+
+    async def stop(self):
+        await self.redis.aclose()
+
     async def enqueue(self, task_data: Dict[str, Any]) -> str:
         with tracer.start_as_current_span("task_queue.enqueue"):
             task_json = json.dumps(task_data)

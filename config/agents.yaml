@@ -64,8 +64,8 @@ agents:
     system_prompt: |
       You are the QA Engineer. You design test plans, write automated end-to-end tests, perform exploratory testing,
       and ensure the software meets acceptance criteria before release.
-    model: "gpt-4o-mini"
-    temperature: 0.3
+    model: "developer-model"
+    temperature: 0.23
     max_tokens: 4096
     capabilities: ["test_planning", "automated_testing", "bug_reporting", "quality_assurance"]
 
@@ -114,7 +114,7 @@ agents:
     system_prompt: |
       You are the Technical Writer. You write clear, concise, and accurate documentation, including API references,
       user guides, architectural overviews, and release notes.
-    model: "gpt-4o-mini"
+    model: "developer-model"
     temperature: 0.3
     max_tokens: 4096
     capabilities: ["documentation", "api_reference", "user_guides", "editing"]

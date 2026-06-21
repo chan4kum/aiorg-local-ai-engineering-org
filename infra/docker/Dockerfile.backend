@@ -39,7 +39,7 @@ ENV PATH="/app/.venv/bin:$PATH"
 # Copy application code
 COPY backend /app/backend
 COPY agents /app/agents
-COPY mcp /app/mcp
+COPY openclaw_mcp /app/openclaw_mcp
 COPY memory /app/memory
 COPY orchestrator /app/orchestrator
 COPY services /app/services

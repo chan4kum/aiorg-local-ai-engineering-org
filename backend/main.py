@@ -12,20 +12,41 @@ from backend.middleware.rate_limit import RateLimitMiddleware
 from services.event_bus import EventBus
 from services.task_queue import TaskQueue
 
+
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Create tables on startup (dev convenience — use alembic in production)
+    from backend.database.models import Base
+    from backend.database.session import engine
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
     # Setup background services
     app.state.event_bus = EventBus()
     app.state.task_queue = TaskQueue(settings.redis_url)
-    
-    await app.state.event_bus.start()
-    await app.state.task_queue.start()
-    
+
+    try:
+        await app.state.event_bus.start()
+    except Exception:
+        pass  # Redis may not be available in minimal dev mode
+
+    try:
+        await app.state.task_queue.start()
+    except Exception:
+        pass  # Redis may not be available in minimal dev mode
+
     yield
-    
+
     # Teardown
-    await app.state.task_queue.stop()
-    await app.state.event_bus.stop()
+    try:
+        await app.state.task_queue.stop()
+    except Exception:
+        pass
+    try:
+        await app.state.event_bus.stop()
+    except Exception:
+        pass
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
 

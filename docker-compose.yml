@@ -55,9 +55,9 @@ services:
     environment:
       <<: *common-env
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-openclaw}:${POSTGRES_PASSWORD:-openclaw_dev}@postgres:5432/${POSTGRES_DB:-openclaw}
-      REDIS_URL: ""
-      QDRANT_HOST: ""
-      QDRANT_PORT: ""
+      REDIS_URL: "redis://redis:6379/0"
+      QDRANT_HOST: "qdrant"
+      QDRANT_PORT: "6333"
       LITELLM_BASE_URL: http://litellm:4000
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-litellm-dev-key}
       LANGFUSE_HOST: http://langfuse:3000
@@ -65,15 +65,25 @@ services:
       LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-sk-lf-dev}
       APP_SECRET_KEY: ${APP_SECRET_KEY:-dev-secret-key-change-in-production}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-jwt-secret-change-in-production}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-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}
+      KANBOARD_API_URL: ${KANBOARD_API_URL:-http://kanboard:80/jsonrpc.php}
+      KANBOARD_API_TOKEN: ${KANBOARD_API_TOKEN:-default_token_replace_me}
     volumes:
-      - ./src:/app/src:cached
+      - ./backend:/app/backend:cached
+      - ./agents:/app/agents:cached
+      - ./orchestrator:/app/orchestrator:cached
+      - ./services:/app/services:cached
+      - ./mcp:/app/mcp:cached
+      - ./memory:/app/memory:cached
+      - ./workflows:/app/workflows:cached
+      - ./evaluation:/app/evaluation:cached
       - ./config:/app/config:ro
       - ./migrations:/app/migrations
     depends_on:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()"]
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/docs')"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -90,18 +100,29 @@ services:
     environment:
       <<: *common-env
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-openclaw}:${POSTGRES_PASSWORD:-openclaw_dev}@postgres:5432/${POSTGRES_DB:-openclaw}
-      REDIS_URL: ""
-      QDRANT_HOST: ""
-      QDRANT_PORT: ""
+      REDIS_URL: "redis://redis:6379/0"
+      QDRANT_HOST: "qdrant"
+      QDRANT_PORT: "6333"
       LITELLM_BASE_URL: http://litellm:4000
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY:-sk-litellm-dev-key}
       LANGFUSE_HOST: http://langfuse:3000
-      CELERY_BROKER_URL: ""
-      CELERY_RESULT_BACKEND: ""
+      CELERY_BROKER_URL: "redis://redis:6379/1"
+      CELERY_RESULT_BACKEND: "redis://redis:6379/2"
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-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}
+      KANBOARD_API_URL: ${KANBOARD_API_URL:-http://kanboard:80/jsonrpc.php}
+      KANBOARD_API_TOKEN: ${KANBOARD_API_TOKEN:-default_token_replace_me}
     volumes:
-      - ./src:/app/src:cached
+      - ./backend:/app/backend:cached
+      - ./agents:/app/agents:cached
+      - ./orchestrator:/app/orchestrator:cached
+      - ./services:/app/services:cached
+      - ./mcp:/app/mcp:cached
+      - ./memory:/app/memory:cached
+      - ./workflows:/app/workflows:cached
+      - ./evaluation:/app/evaluation:cached
       - ./config:/app/config:ro
       - agent-workspaces:/tmp/openclaw/workspaces
+      - dind-certs-client:/certs/client:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -113,6 +134,20 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+    networks:
+      - openclaw-network
+    restart: unless-stopped
+
+  evaluation-service:
+    image: docker:dind
+    container_name: openclaw-evaluation-dind
+    privileged: true
+    environment:
+      - DOCKER_TLS_CERTDIR=/certs
+    volumes:
+      - dind-certs-ca:/certs/ca
+      - dind-certs-client:/certs/client
+      - agent-workspaces:/tmp/openclaw/workspaces
     networks:
       - openclaw-network
     restart: unless-stopped
@@ -151,7 +186,7 @@ services:
   # ═══════════════════════════════════════════════════════════════════════════
 
   postgres:
-    image: pgvector/pgvector:pg17
+    image: pgvector/pgvector:pg16
     container_name: openclaw-postgres
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
@@ -188,6 +223,51 @@ services:
       - "-c"
       - "log_statement=mod"
 
+  redis:
+    image: redis:7-alpine
+    container_name: openclaw-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:-redis_dev}
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+      --appendfsync everysec
+      --save 60 1000
+      --save 300 100
+      --tcp-keepalive 60
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redis_dev}", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - openclaw-network
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: openclaw-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant-data:/qdrant/storage
+      - qdrant-snapshots:/qdrant/snapshots
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:6333/readyz"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - openclaw-network
+    restart: unless-stopped
+
 
   # ═══════════════════════════════════════════════════════════════════════════
   # AI / LLM SERVICES
@@ -205,14 +285,19 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-}
       AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-us-east-1}
+      REDIS_HOST: "redis"
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-change-me-redis-password}
+      REDIS_URL: "redis://:${REDIS_PASSWORD:-change-me-redis-password}@redis:6379/0"
     volumes:
       - ./config/litellm_config.yaml:/app/config.yaml:ro
-    command: ["--config", "/app/config.yaml", "--port", "4000", "--detailed_debug"]
+    command: ["--config", "/app/config.yaml", "--port", "4000", "--telemetry", "False"]
     depends_on:
       postgres:
         condition: service_healthy
@@ -250,7 +335,7 @@ services:
     image: langfuse/langfuse:2
     container_name: openclaw-langfuse
     ports:
-      - "3001:3000"
+      - "3006:3000"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-openclaw}:${POSTGRES_PASSWORD:-openclaw_dev}@postgres:5432/langfuse
       NEXTAUTH_SECRET: ${LANGFUSE_NEXTAUTH_SECRET:-langfuse-dev-secret}
@@ -312,12 +397,12 @@ services:
     image: grafana/grafana:11.3.0
     container_name: openclaw-grafana
     ports:
-      - "${GRAFANA_PORT:-3002}:3000"
+      - "3015:3000"
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_USERS_ALLOW_SIGN_UP: "false"
-      GF_SERVER_ROOT_URL: http://localhost:${GRAFANA_PORT:-3002}
+      GF_SERVER_ROOT_URL: http://localhost:${GRAFANA_PORT:-3012}
       GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-simple-json-datasource
       GF_LOG_LEVEL: warn
       GF_AUTH_ANONYMOUS_ENABLED: "true"
@@ -334,6 +419,92 @@ services:
     depends_on:
       prometheus:
         condition: service_healthy
+    networks:
+      - openclaw-network
+    restart: unless-stopped
+
+  kanboard:
+    image: kanboard/kanboard:latest
+    container_name: openclaw-kanboard
+    ports:
+      - "8088:80"
+    environment:
+      - DATABASE_DRIVER=postgres
+      - DATABASE_URL=postgres://${POSTGRES_USER:-openclaw}:${POSTGRES_PASSWORD:-openclaw_dev}@postgres:5432/${POSTGRES_DB:-openclaw}
+    volumes:
+      - kanboard-data:/var/www/app/data
+      - kanboard-plugins:/var/www/app/plugins
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - openclaw-network
+    restart: unless-stopped
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # MCP SERVERS
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  mcp-context7:
+    image: mcp/context7@sha256:1174e6a29634a83b2be93ac1fefabf63265f498c02c72201fe3464e687dd8836
+    container_name: openclaw-mcp-context7
+    stdin_open: true
+    tty: true
+    networks:
+      - openclaw-network
+    restart: unless-stopped
+
+
+  mcp-playwright:
+    image: mcp/playwright:latest
+    container_name: openclaw-mcp-playwright
+    stdin_open: true
+    tty: true
+    networks:
+      - openclaw-network
+    restart: unless-stopped
+
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:latest
+    container_name: openclaw-docker-proxy
+    environment:
+      - CONTAINERS=1
+      - IMAGES=1
+      - NETWORKS=0
+      - VOLUMES=0
+      - POST=0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - openclaw-network
+    restart: unless-stopped
+
+  mcp-docker:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.backend
+    container_name: openclaw-mcp-docker
+    environment:
+      - DOCKER_HOST=tcp://docker-socket-proxy:2375
+    command: ["python", "-m", "openclaw_mcp.servers.docker_server"]
+    ports:
+      - "8081:8080"
+    depends_on:
+      - docker-socket-proxy
+    networks:
+      - openclaw-network
+    restart: unless-stopped
+
+  mcp-k8s:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.backend
+    container_name: openclaw-mcp-k8s
+    volumes:
+      - ~/.kube:/root/.kube:ro
+    command: ["python", "-m", "openclaw_mcp.servers.k8s_server"]
+    ports:
+      - "8082:8080"
     networks:
       - openclaw-network
     restart: unless-stopped
@@ -355,6 +526,15 @@ volumes:
   postgres-data:
     driver: local
     name: openclaw-postgres-data
+  redis-data:
+    driver: local
+    name: openclaw-redis-data
+  qdrant-data:
+    driver: local
+    name: openclaw-qdrant-data
+  qdrant-snapshots:
+    driver: local
+    name: openclaw-qdrant-snapshots
 
   prometheus-data:
     driver: local
@@ -371,3 +551,15 @@ volumes:
   open-webui-data:
     driver: local
     name: openclaw-webui-data
+  kanboard-data:
+    driver: local
+    name: openclaw-kanboard-data
+  kanboard-plugins:
+    driver: local
+    name: openclaw-kanboard-plugins
+  dind-certs-ca:
+    driver: local
+    name: openclaw-dind-certs-ca
+  dind-certs-client:
+    driver: local
+    name: openclaw-dind-certs-client

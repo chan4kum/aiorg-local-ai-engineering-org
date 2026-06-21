@@ -1,29 +1,29 @@
 from typing import List, Optional, Dict, Any
 from sqlalchemy import select, update, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from backend.database.models import AgentRunModel
+from backend.database.models import AgentRun
 
 class AgentRunRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def create(self, data: dict) -> AgentRunModel:
-        db_item = AgentRunModel(**data)
+    async def create(self, data: dict) -> AgentRun:
+        db_item = AgentRun(**data)
         self.session.add(db_item)
         await self.session.commit()
         await self.session.refresh(db_item)
         return db_item
 
-    async def get_by_id(self, item_id: str) -> Optional[AgentRunModel]:
+    async def get_by_id(self, item_id: str) -> Optional[AgentRun]:
         result = await self.session.execute(
-            select(AgentRunModel).where(AgentRunModel.id == item_id)
+            select(AgentRun).where(AgentRun.id == item_id)
         )
         return result.scalar_one_or_none()
 
-    async def get_all(self, agent_id: Optional[str] = None) -> List[AgentRunModel]:
-        query = select(AgentRunModel)
+    async def get_all(self, agent_id: Optional[str] = None) -> List[AgentRun]:
+        query = select(AgentRun)
         if agent_id:
-            query = query.where(AgentRunModel.agent_id == agent_id)
+            query = query.where(AgentRun.agent_id == agent_id)
         result = await self.session.execute(query)
         return list(result.scalars().all())
 
@@ -31,8 +31,8 @@ class AgentRunRepository:
         result = await self.session.execute(
             select(
                 func.count().label("total_runs"),
-                func.avg(AgentRunModel.duration).label("avg_duration")
-            ).where(AgentRunModel.agent_id == agent_id)
+                func.avg(AgentRun.duration).label("avg_duration")
+            ).where(AgentRun.agent_id == agent_id)
         )
         row = result.first()
         if row:
@@ -42,19 +42,19 @@ class AgentRunRepository:
             }
         return {"total_runs": 0, "avg_duration": 0.0}
 
-    async def update(self, item_id: str, data: dict) -> Optional[AgentRunModel]:
+    async def update(self, item_id: str, data: dict) -> Optional[AgentRun]:
         result = await self.session.execute(
-            update(AgentRunModel)
-            .where(AgentRunModel.id == item_id)
+            update(AgentRun)
+            .where(AgentRun.id == item_id)
             .values(**data)
-            .returning(AgentRunModel)
+            .returning(AgentRun)
         )
         await self.session.commit()
         return result.scalar_one_or_none()
 
     async def delete(self, item_id: str) -> bool:
         result = await self.session.execute(
-            delete(AgentRunModel).where(AgentRunModel.id == item_id)
+            delete(AgentRun).where(AgentRun.id == item_id)
         )
         await self.session.commit()
         return result.rowcount > 0

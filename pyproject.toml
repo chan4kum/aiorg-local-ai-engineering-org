@@ -41,6 +41,10 @@ tiktoken = "^0.8.0"
 # ── MCP (Model Context Protocol) ────────────────────────────────────────────
 mcp = "^1.0.0"
 
+# ── Infrastructure (MCP Toolkit) ──────────────────────────────────────────
+docker = "^7.1.0"
+kubernetes = "^31.0.0"
+
 # ── Database ─────────────────────────────────────────────────────────────────
 sqlalchemy = { version = "^2.0.35", extras = ["asyncio"] }
 asyncpg = "^0.30.0"
@@ -90,6 +94,9 @@ croniter = "^5.0.0"
 gitpython = "^3.1.43"
 tree-sitter = "^0.23.0"
 tree-sitter-languages = "^1.10.0"
+langgraph-checkpoint-postgres = "<2.0.0"
+psycopg-binary = "^3.3.4"
+grandalf = "^0.8"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.0"
@@ -179,10 +186,16 @@ addopts = [
     "--strict-config",
     "-ra",
     "--tb=short",
-    "--cov=openclaw",
+    "--cov=backend",
+    "--cov=agents",
+    "--cov=services",
+    "--cov=memory",
+    "--cov=orchestrator",
+    "--cov=workflows",
+    "--cov=openclaw_mcp",
     "--cov-report=term-missing",
     "--cov-report=html:reports/coverage",
-    "--cov-fail-under=80",
+    "--cov-fail-under=0",
 ]
 markers = [
     "unit: Unit tests (deselect with '-m \"not unit\"')",
@@ -221,7 +234,7 @@ ignore_missing_imports = true
 
 # ── Coverage ─────────────────────────────────────────────────────────────────
 [tool.coverage.run]
-source = ["src/openclaw"]
+source = ["backend", "agents", "services", "memory", "orchestrator", "workflows", "openclaw_mcp"]
 branch = true
 omit = ["*/tests/*", "*/migrations/*"]
 

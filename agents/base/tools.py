@@ -43,8 +43,11 @@ class BaseTool(ABC):
 
 class MCPToolWrapper(BaseTool):
     """Wrapper for Model Context Protocol tools"""
-    def __init__(self, mcp_client, tool_name: str, description: str, parameters: List[ToolParameter]):
-        self.mcp = mcp_client
+    def __init__(self, mcp_server_name: str, mcp_container_name: str, tool_name: str, description: str, parameters: List[ToolParameter]):
+        from services.mcp_client_manager import mcp_manager
+        self.mcp_manager = mcp_manager
+        self.server_name = mcp_server_name
+        self.container_name = mcp_container_name
         self.name = tool_name
         self.description = description
         self.parameters = parameters
@@ -52,8 +55,14 @@ class MCPToolWrapper(BaseTool):
     async def execute(self, **kwargs) -> Any:
         with tracer.start_as_current_span(f"tool.mcp.{self.name}"):
             try:
-                result = await self.mcp.call_tool(self.name, kwargs)
-                logger.info("Executed MCP tool", tool_name=self.name)
+                # Dispatch the call via the central manager
+                result = await self.mcp_manager.call_tool(
+                    server_name=self.server_name,
+                    container_name=self.container_name,
+                    tool_name=self.name,
+                    arguments=kwargs
+                )
+                logger.info("Executed MCP tool", tool_name=self.name, server_name=self.server_name)
                 return result
             except Exception as e:
                 logger.error("MCP tool execution failed", tool_name=self.name, error=str(e))

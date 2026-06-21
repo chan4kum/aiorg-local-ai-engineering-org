@@ -26,6 +26,7 @@ mcp_permissions:
       - mcp.confluence.read_page
       - mcp.confluence.create_page
       - mcp.jira.read_issue
+      - mcp.sequentialthinking.sequentialthinking
     allowed_resources:
       - "github://*"
       - "confluence://*"
@@ -37,6 +38,10 @@ mcp_permissions:
       - mcp.github.commit_code
       - mcp.jira.read_issue
       - mcp.jira.update_issue
+      - mcp.context7.resolve-library-id
+      - mcp.context7.get-library-docs
+      - mcp.playwright.playwright_navigate
+      - mcp.playwright.playwright_click
     allowed_resources:
       - "github://repo/frontend/*"
       - "jira://*"
@@ -49,6 +54,8 @@ mcp_permissions:
       - mcp.jira.read_issue
       - mcp.jira.update_issue
       - mcp.database.read_schema
+      - mcp.context7.resolve-library-id
+      - mcp.context7.get-library-docs
     allowed_resources:
       - "github://repo/backend/*"
       - "postgres://schema/*"
@@ -71,6 +78,9 @@ mcp_permissions:
       - mcp.jira.read_issue
       - mcp.jira.create_issue
       - mcp.testing.run_suite
+      - mcp.sequentialthinking.sequentialthinking
+      - mcp.playwright.playwright_navigate
+      - mcp.playwright.playwright_click
     allowed_resources:
       - "github://*"
       - "jira://*"
@@ -148,6 +158,8 @@ mcp_permissions:
       - mcp.confluence.create_page
       - mcp.aws.read_resources
       - mcp.lucidchart.create_diagram
+      - mcp.context7.resolve-library-id
+      - mcp.context7.get-library-docs
     allowed_resources:
       - "github://*"
       - "aws://*"

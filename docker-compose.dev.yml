@@ -1,0 +1,54 @@
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║  OpenClaw — Minimal Dev Stack (Postgres + Redis)                           ║
+# ║  Usage: docker compose -f docker-compose.dev.yml up -d                     ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+
+name: openclaw-dev
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: openclaw-dev-postgres
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_DB: openclaw
+      POSTGRES_USER: openclaw
+      POSTGRES_PASSWORD: openclaw_dev
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    volumes:
+      - dev-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openclaw -d openclaw"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: openclaw-dev-redis
+    ports:
+      - "6380:6379"
+    command: >
+      redis-server
+      --maxmemory 128mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+    volumes:
+      - dev-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  dev-postgres-data:
+    driver: local
+    name: openclaw-dev-postgres-data
+  dev-redis-data:
+    driver: local
+    name: openclaw-dev-redis-data

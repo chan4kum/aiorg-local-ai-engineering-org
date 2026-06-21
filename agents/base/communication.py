@@ -1,5 +1,5 @@
 from typing import Dict, Any, Callable, Awaitable
-from backend.services.event_bus import EventBus
+from services.event_bus import EventBus
 import structlog
 
 logger = structlog.get_logger()

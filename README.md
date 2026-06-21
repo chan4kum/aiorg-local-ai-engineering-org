@@ -1,94 +1,71 @@
-# OpenClaw — Local AI Engineering Organization
+# OpenClaw — Enterprise-Grade AI Engineering Platform
 
 [![Docker Compose](https://img.shields.io/badge/Runtime-Docker%20Compose-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
-[![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-MCP%20Servers-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![LangGraph](https://img.shields.io/badge/Orchestration-LangGraph-000000)](https://www.langchain.com/langgraph)
-[![100% Local](https://img.shields.io/badge/AI-100%25%20Local%20(Ollama)-brightgreen)](#)
+[![Kubernetes](https://img.shields.io/badge/Cloud-Ready%20K8s-326CE5?logo=kubernetes&logoColor=white)](https://kubernetes.io/)
+[![Google Gemini](https://img.shields.io/badge/LLM-Google%20Gemini-4285F4?logo=google&logoColor=white)](https://aistudio.google.com/)
 
-A **production-grade, 100% local AI Engineering Organization** where specialized AI agents collaborate to produce complete software applications — from requirements through deployment. It behaves like a software company composed of AI teammates, running entirely on your own machine without relying on external API keys.
+A **productizable, cloud-ready AI Engineering Platform**. 
+You write down your problem statement in a beautiful Next.js Chat UI, and a specialized team of AI agents picks it up, solves it, containerizes it, deploys it to a GitHub repo, and creates a comprehensive README.
+
+## Architecture & Vision
+
+OpenClaw behaves like a software company composed of AI teammates, running with enterprise-grade traceability and scalability.
 
 ```mermaid
 flowchart TD
-    U[User Request / MCP Client] --> O[Orchestrator: Aria]
-
-    O --> PM[Product Manager: Morgan]
-    O --> SA[Solution Architect: Sasha]
-    O --> RS[Research: River]
-
-    PM --> IMPL
-    SA --> IMPL
-    RS --> IMPL
-
-    subgraph IMPL[Implementation Layer]
-          BE[Backend: Blake]
-          FE[Frontend: Finn]
-          AI[AI Engineer: Alex]
-          DE[Data Engineer: Dana]
+    U[Next.js Chat UI] -->|WebSocket| O[OpenClaw API Gateway]
+    
+    O -->|Assigns Work| ORCH[Orchestrator Agent]
+    
+    subgraph Agent Team
+        ORCH --> PM[Product Manager]
+        ORCH --> SA[Solution Architect]
+        PM --> BE[Backend Engineer]
+        PM --> FE[Frontend Engineer]
+        SA --> DE[DevOps Engineer]
     end
-
-    IMPL --> QA[QA: Quinn]
-    QA --> SEC[Security: Sam]
-    SEC --> DEVOPS[DevOps: Devon]
-    DEVOPS --> DOCS[Docs: Doc]
-    DOCS --> CR[Code Review: Chris]
-    CR --> OBS[Observability: Ollie]
-    OBS --> EVAL[Evaluation: Eva]
+    
+    Agent Team -->|Code Generation| WS[Workspace / Artifacts]
+    
+    WS -->|CI/CD Pipeline| GH[GitHub Repository]
+    GH -->|Deployment| K8S[Kubernetes Cluster]
+    
+    %% Storage Layer
+    O -.->|Task State| PG[(PostgreSQL + pgvector)]
+    O -.->|Queues & Cache| RD[(Redis)]
 ```
 
-## AI Models Configuration (MacBook Pro Optimized)
-The system leverages **LiteLLM** to seamlessly proxy and load balance requests to local Ollama models. You get the intelligence of a massive AI cluster completely for free, running natively inside the OpenClaw docker network:
+## Core Features (Enterprise-Ready)
 
-- **Reasoning / Orchestrator** (DeepSeek-R1 Distilled): `deepseek-r1:8b`
-- **Engineering / Coding** (Qwen3-Coder): `qwen3-coder:14b`
-- **General Workloads** (Gemma 3): `gemma3:12b`
-- **Fast / Research / Eval** (Qwen3): `qwen3:8b`
+- **Cloud-Agnostic Infrastructure**: 12-Factor app design, deployable via Docker Compose or Kubernetes (Helm).
+- **Full Traceability**: Agent actions, reasoning, and token usage are fully audited and logged in PostgreSQL.
+- **Real-Time UI**: Next.js frontend with WebSocket integration for real-time visibility into agent workflows.
+- **GitHub Automation**: Agents automatically create repositories, commit code, and write documentation.
+- **Stateful AI Workflow**: Powered by robust check-pointing; workflows can be paused, resumed, or human-intervened.
+- **Multi-tenant Auth**: Designed for org/user scoping and JWT authentication.
 
-*To use this setup, ensure you pull the models inside the Ollama container after starting the cluster:*
-```bash
-docker exec -it openclaw-ollama ollama pull deepseek-r1:8b
-docker exec -it openclaw-ollama ollama pull qwen3-coder:14b
-docker exec -it openclaw-ollama ollama pull gemma3:12b
-docker exec -it openclaw-ollama ollama pull qwen3:8b
-docker exec -it openclaw-ollama ollama pull nomic-embed-text
-```
+## Quick Start (Minimal Dev Stack)
 
-## Quick Start
+To run the local development stack (Postgres + Redis):
 
 ```bash
 # 1. Configure environment
 cp .env.example .env
+# Edit .env to add your GOOGLE_API_KEY
 
-# 2. Start all infrastructure services
-docker-compose up -d
+# 2. Start the minimal infrastructure
+docker compose -f docker-compose.dev.yml up -d
 
-# 3. Monitor your AI engineers via Langfuse
-open http://localhost:3001
+# 3. Start the Backend API
+poetry run uvicorn backend.main:app --host 0.0.0.0 --port 8001 --reload
 ```
 
-## MCP Server Integration
-Expose the OpenClaw multi-agent cluster to your IDE (Cursor, Claude Desktop) via the built-in MCP server!
+## Infrastructure Services
 
-Add this to your `cline_mcp_settings.json` or Cursor Settings:
-```json
-{
-  "mcpServers": {
-    "openclaw-agents": {
-      "command": "python",
-      "args": ["mcp/servers/openclaw_server.py"]
-    }
-  }
-}
-```
-
-## Architecture Services
-
-| Service    | Port   | Purpose                       |
-| ---------- | ------ | ----------------------------- |
-| OpenClaw   | 8000   | Main API & WebSocket Gateway  |
-| LiteLLM    | 4000   | Unified Local LLM router      |
-| PostgreSQL | 5433   | Task state + memory           |
-| Redis      | 6379   | Working memory + queues       |
-| Qdrant     | 6333   | Semantic/vector memory        |
-| Langfuse   | 3001   | AI Observability              |
-| Grafana    | 3002   | System Dashboards             |
+| Service | Port | Purpose |
+|---------|------|---------|
+| OpenClaw API | 8001 | Main FastAPI & WebSocket Gateway |
+| PostgreSQL | 5434 | Task state, artifacts, vector memory |
+| Redis | 6380 | Task queues, event bus, caching |

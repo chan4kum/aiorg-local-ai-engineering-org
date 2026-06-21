@@ -13,6 +13,13 @@ class EventBus:
         self.queues: Dict[str, asyncio.Queue] = {}
         self.tasks: list[asyncio.Task] = []
 
+    async def start(self):
+        pass
+
+    async def stop(self):
+        for task in self.tasks:
+            task.cancel()
+
     async def publish(self, stream: str, event: Dict[str, Any]) -> str:
         with tracer.start_as_current_span("event_bus.publish") as span:
             span.set_attribute("stream", stream)

@@ -54,7 +54,7 @@ async def trim_context(state: WorkflowState) -> WorkflowState:
     # Use the ultra-fast Llama 3.2 model to summarize
     try:
         response = await acompletion(
-            model="gpt-4o-mini", # Routed to llama3.2:latest in litellm_config.yaml
+            model="planner-model", # Routed to llama3.2:latest in litellm_config.yaml
             messages=[
                 {"role": "system", "content": "You are a highly efficient state summarizer. Summarize the following context into a dense, concise summary retaining all critical facts."},
                 {"role": "user", "content": json.dumps(state["context"])}
