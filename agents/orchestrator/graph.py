@@ -7,7 +7,8 @@ from .nodes import (
     monitor_progress,
     handle_failure,
     quality_gate,
-    finalize
+    finalize,
+    trim_context
 )
 
 def create_orchestrator_graph() -> StateGraph:
@@ -23,6 +24,7 @@ def create_orchestrator_graph() -> StateGraph:
     workflow.add_node("monitor_progress", monitor_progress)
     workflow.add_node("handle_failure", handle_failure)
     workflow.add_node("quality_gate", quality_gate)
+    workflow.add_node("trim_context", trim_context)
     workflow.add_node("finalize", finalize)
 
     # Set entry point
@@ -31,7 +33,8 @@ def create_orchestrator_graph() -> StateGraph:
     # Add edges
     workflow.add_edge("analyze_requirements", "create_task_dag")
     workflow.add_edge("create_task_dag", "assign_tasks")
-    workflow.add_edge("assign_tasks", "monitor_progress")
+    workflow.add_edge("assign_tasks", "trim_context")
+    workflow.add_edge("trim_context", "monitor_progress")
     
     # Conditional logic for monitoring progress
     workflow.add_conditional_edges(

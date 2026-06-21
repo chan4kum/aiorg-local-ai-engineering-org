@@ -16,33 +16,20 @@ litellm_settings:
   count_tokens: true
   cache: true
   cache_params:
-    type: redis
-    host: redis
-    port: 6379
-    password: "os.environ/REDIS_PASSWORD"
-    namespace: "litellm_cache"
-    ttl: 3600
+    type: s3
+    s3_bucket_name: "placeholder-or-postgres"
 
 model_list:
 
   # ── Local Models (Ollama) ──────────────────────────────────────────────────
   - model_name: "reasoning-model"
     litellm_params:
-      model: "ollama/deepseek-r1:8b"
-      api_base: "http://ollama:11434"
-      max_tokens: 8192
-      temperature: 0.1
+      model: "anthropic/claude-3-5-sonnet-20241022"
+      api_key: "os.environ/ANTHROPIC_API_KEY"
 
   - model_name: "coding-model"
     litellm_params:
-      model: "ollama/qwen2.5-coder:14b"
-      api_base: "http://ollama:11434"
-      max_tokens: 8192
-      temperature: 0.1
-
-  - model_name: "general-model"
-    litellm_params:
-      model: "ollama/gemma3:12b"
+      model: "ollama/qwen3-coder:14b"
       api_base: "http://ollama:11434"
       max_tokens: 8192
       temperature: 0.1
@@ -70,19 +57,15 @@ router_settings:
   routing_strategy: "latency-based-routing"
   
   model_group_alias:
-    # Map high-tier reasoning requests to DeepSeek-R1 8B Distilled
+    # Map high-tier reasoning requests to Claude 3.5 Sonnet
     "claude-opus":
       model: "reasoning-model"
       
-    # Map coding/engineering requests to Qwen3-Coder 14B
+    # Map coding/engineering and general requests to Qwen3-Coder 14B
     "claude-sonnet":
       model: "coding-model"
-    "qwen2.5-coder:7b":
-      model: "coding-model"
-      
-    # Map general processing to Gemma 3 12B
     "gpt-4o":
-      model: "general-model"
+      model: "coding-model"
       
     # Map ultra-fast/evaluation requests to Llama 3.2
     "gpt-4o-mini":

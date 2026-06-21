@@ -1,4 +1,6 @@
 from typing import Any, Dict
+from litellm import acompletion
+import json
 from .state import WorkflowState
 
 async def analyze_requirements(state: WorkflowState) -> WorkflowState:
@@ -42,4 +44,27 @@ async def quality_gate(state: WorkflowState) -> WorkflowState:
 async def finalize(state: WorkflowState) -> WorkflowState:
     """Finalize the workflow and aggregate artifacts."""
     state["status"] = "completed"
+    return state
+
+async def trim_context(state: WorkflowState) -> WorkflowState:
+    """Summarize older conversation history to prevent context window overflow."""
+    if not state.get("context"):
+        return state
+        
+    # Use the ultra-fast Llama 3.2 model to summarize
+    try:
+        response = await acompletion(
+            model="gpt-4o-mini", # Routed to llama3.2:latest in litellm_config.yaml
+            messages=[
+                {"role": "system", "content": "You are a highly efficient state summarizer. Summarize the following context into a dense, concise summary retaining all critical facts."},
+                {"role": "user", "content": json.dumps(state["context"])}
+            ],
+            max_tokens=1000
+        )
+        summary = response.choices[0].message.content
+        state["context"] = {"summary": summary}
+        state["status"] = "context_trimmed"
+    except Exception as e:
+        print(f"Token trimming failed: {e}")
+        
     return state
