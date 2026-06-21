@@ -36,19 +36,21 @@ flowchart TD
     OBS --> EVAL[Evaluation: Eva]
 ```
 
-## AI Models Configuration
-The system leverages **LiteLLM** to seamlessly proxy and load balance requests to local Ollama models. You get the intelligence of a massive AI cluster completely for free:
+## AI Models Configuration (MacBook Pro Optimized)
+The system leverages **LiteLLM** to seamlessly proxy and load balance requests to local Ollama models. You get the intelligence of a massive AI cluster completely for free, running natively inside the OpenClaw docker network:
 
-- **Reasoning Agents** (Orchestrator, Solution Architect): `qwen2.5:32b`
-- **Engineering Agents** (Backend, Frontend, DevOps, QA): `qwen2.5-coder:7b`
-- **Fast Agents** (Research, Eval): `llama3.2:3b`
+- **Reasoning / Orchestrator** (DeepSeek-R1 Distilled): `deepseek-r1:8b`
+- **Engineering / Coding** (Qwen3-Coder): `qwen3-coder:14b`
+- **General Workloads** (Gemma 3): `gemma3:12b`
+- **Fast / Research / Eval** (Qwen3): `qwen3:8b`
 
-*To use this setup, ensure you pull the models on your host:*
+*To use this setup, ensure you pull the models inside the Ollama container after starting the cluster:*
 ```bash
-ollama run qwen2.5:32b
-ollama run qwen2.5-coder
-ollama run llama3.2
-ollama run nomic-embed-text
+docker exec -it openclaw-ollama ollama pull deepseek-r1:8b
+docker exec -it openclaw-ollama ollama pull qwen3-coder:14b
+docker exec -it openclaw-ollama ollama pull gemma3:12b
+docker exec -it openclaw-ollama ollama pull qwen3:8b
+docker exec -it openclaw-ollama ollama pull nomic-embed-text
 ```
 
 ## Quick Start

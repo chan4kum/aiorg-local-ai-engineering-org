@@ -13,6 +13,35 @@ x-common-env: &common-env
 
 services:
   # ═══════════════════════════════════════════════════════════════════════════
+  # OLLAMA LOCAL MODELS
+  # ═══════════════════════════════════════════════════════════════════════════
+  ollama:
+    image: ollama/ollama:latest
+    container_name: openclaw-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - openclaw-network
+    restart: unless-stopped
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: openclaw-webui
+    ports:
+      - "3005:8080"
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - WEBUI_AUTH=False
+    volumes:
+      - open-webui-data:/app/backend/data
+    depends_on:
+      - ollama
+    networks:
+      - openclaw-network
+    restart: unless-stopped
+  # ═══════════════════════════════════════════════════════════════════════════
   # APPLICATION SERVICES
   # ═══════════════════════════════════════════════════════════════════════════
 
@@ -409,3 +438,9 @@ volumes:
   agent-workspaces:
     driver: local
     name: openclaw-agent-workspaces
+  ollama-data:
+    driver: local
+    name: openclaw-ollama-data
+  open-webui-data:
+    driver: local
+    name: openclaw-webui-data

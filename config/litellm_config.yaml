@@ -26,51 +26,60 @@ litellm_settings:
 model_list:
 
   # ── Local Models (Ollama) ──────────────────────────────────────────────────
-  - model_name: "qwen2.5-reasoning"
+  - model_name: "reasoning-model"
     litellm_params:
-      model: "ollama/qwen2.5:32b"
-      api_base: "http://host.docker.internal:11434"
+      model: "ollama/deepseek-r1:8b"
+      api_base: "http://ollama:11434"
       max_tokens: 8192
       temperature: 0.1
 
-  - model_name: "qwen2.5-coder"
+  - model_name: "coding-model"
     litellm_params:
-      model: "ollama/qwen2.5-coder:7b"
-      api_base: "http://host.docker.internal:11434"
+      model: "ollama/qwen2.5-coder:14b"
+      api_base: "http://ollama:11434"
       max_tokens: 8192
       temperature: 0.1
 
-  - model_name: "llama3.2-fast"
+  - model_name: "general-model"
     litellm_params:
-      model: "ollama/llama3.2"
-      api_base: "http://host.docker.internal:11434"
+      model: "ollama/gemma3:12b"
+      api_base: "http://ollama:11434"
       max_tokens: 8192
       temperature: 0.1
       
+  - model_name: "fast-model"
+    litellm_params:
+      model: "ollama/qwen3:8b"
+      api_base: "http://ollama:11434"
+      max_tokens: 8192
+      temperature: 0.1
+
   - model_name: "nomic-embed"
     litellm_params:
       model: "ollama/nomic-embed-text"
-      api_base: "http://host.docker.internal:11434"
+      api_base: "http://ollama:11434"
 
 router_settings:
   routing_strategy: "latency-based-routing"
   
   model_group_alias:
-    # Map high-tier reasoning requests to Qwen 2.5 32B
+    # Map high-tier reasoning requests to DeepSeek-R1 8B Distilled
     "claude-opus":
-      model: "qwen2.5-reasoning"
-    "gpt-4o":
-      model: "qwen2.5-reasoning"
+      model: "reasoning-model"
       
-    # Map coding/engineering requests to Qwen 2.5 Coder
+    # Map coding/engineering requests to Qwen3-Coder 14B
     "claude-sonnet":
-      model: "qwen2.5-coder"
+      model: "coding-model"
     "qwen2.5-coder:7b":
-      model: "qwen2.5-coder"
+      model: "coding-model"
       
-    # Map fast/research/eval requests to Llama 3.2 3B
+    # Map general processing to Gemma 3 12B
+    "gpt-4o":
+      model: "general-model"
+      
+    # Map fast/research/eval requests to Qwen3 8B
     "gpt-4o-mini":
-      model: "llama3.2-fast"
+      model: "fast-model"
       
     # Map embeddings
     "text-embedding-3-large":
